@@ -1,6 +1,6 @@
-path: yolo # dataset root dir
-train: images/train # train images (relative to 'path') 4 images
-val: images/val # val images (relative to 'path') 4 images
+path: app/training/training_data # dataset root dir
+train: spline_model/train # train images (relative to 'path') 4 images
+val: spline_model/val # val images (relative to 'path') 4 images
 test: # test images (optional)
 
 # Keypoints
@@ -8,12 +8,12 @@ kpt_shape: [5, 3]
 flip_idx: [0, 1, 2, 3, 4]
 
 names:
-  0: scale
+    0: scale
 
 kpt_names:
-  0:
-    - rostrum
-    - tailtip
-    - tailbase
-    - tailbase_third
-    - tailtip_third
+    0:
+        - rostrum
+        - tailtip
+        - tailbase
+        - tailbase_third
+        - tailtip_third

@@ -1,6 +1,6 @@
-path: training_data/scale_model # dataset root dir
-train: images/train # train images (relative to 'path') 4 images
-val: images/val # val images (relative to 'path') 4 images
+path: app/training/training_data # dataset root dir
+train: scale_model/train # train images (relative to 'path') 4 images
+val: scale_model/val # val images (relative to 'path') 4 images
 test: # test images (optional)
 
 # Keypoints
@@ -8,12 +8,12 @@ kpt_shape: [5, 3]
 flip_idx: [0, 1, 2, 3, 4]
 
 names:
-  0: scale
+    0: scale
 
 kpt_names:
-  0:
-    - tick_1
-    - tick_2
-    - tick_3
-    - tick_4
-    - tick_5
+    0:
+        - tick_1
+        - tick_2
+        - tick_3
+        - tick_4
+        - tick_5
