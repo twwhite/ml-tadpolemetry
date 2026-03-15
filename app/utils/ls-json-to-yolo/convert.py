@@ -21,8 +21,8 @@ def main(filename: str, output_dir: str):
     for d in data:
         output_file = output_dir+"/"+os.path.splitext(d['file_upload'])[0]+".txt"
 
-        # Must match kpt_shape[a] * kpt_shape[b] in dataset_n.yaml file
-        num_fields = 10
+        # Must match 5 for bounding box +  (kpt_shape[a] * kpt_shape[b]) in dataset_n.yaml file
+        num_fields = 5 + (5 * 3)
         data_simple = [0 for _ in range(num_fields)] # Simple empty of [0, 0, ... , 0] of size num_fields
 
         for p in d['annotations'][0]['result']:
@@ -53,9 +53,9 @@ def main(filename: str, output_dir: str):
             else:
                 try:
                     label = p['value']['keypointlabels'][0]
-
                     # TODO: Make this all automatic with a mapping file
                     # TODO: Clean this up with some list comprehension
+
 
                     """ these labels are all associated with the scale_model """
                     if label == 'tick_1':
@@ -78,9 +78,8 @@ def main(filename: str, output_dir: str):
                         data_simple[17] = p['value']['x']/100
                         data_simple[18] = p['value']['y']/100
                         data_simple[19] = 2
-
-                    """ these labels are all associated with the spline_model """
-                    if label == 'rostrum':
+                    elif label == 'rostrum':
+                        """ these labels are all associated with the spline_model """
                         data_simple[5] = p['value']['x']/100
                         data_simple[6] = p['value']['y']/100
                         data_simple[7] = 2
@@ -101,8 +100,7 @@ def main(filename: str, output_dir: str):
                         data_simple[18] = p['value']['y']/100
                         data_simple[19] = 2
                     else:
-                        logging.error("Unknown keypoint label")
-                        raise ValueError
+                        logging.error(f"Unknown keypoint label '{label}'")
 
 
                 except Exception as e:
