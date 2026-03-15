@@ -33,7 +33,7 @@ def convert_to_bw(input_dir: str, output_dir: str):
         bw = convert_to_bw_raw(input_path)
 
         name, ext = os.path.splitext(filename)
-        output_path = os.path.join(output_dir, f"{name}_bw{ext}")
+        output_path = os.path.join(output_dir, f"{name}{ext}")
         cv2.imwrite(output_path, bw)
 
 if __name__ == "__main__":
