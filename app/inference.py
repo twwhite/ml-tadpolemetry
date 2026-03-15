@@ -20,10 +20,21 @@ def process(file:str):
 
     # SCALE model inferencing with Black & White pre-processing
     file_bw = convert_to_bw_raw(file)
-    scale_result = scale_spliner(file_bw)
+
+    print("Running scale spliner inference...")
+    scale_result = scale_spliner(file_bw, conf=0.01)
     s = scale_result[0]
 
+    print(s.keypoints)
+    input("ENTER")
+    img = s.plot()
+
+    cv2.imshow("keypoints_bigger", img)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
     # TADPOLE model inferencing
+    print("Running tadpole spliner inference...")
     tadpole_result = tadpole_spliner(file)
     r = tadpole_result[0]
 
@@ -33,6 +44,7 @@ def process(file:str):
     # Break out the TADPOLE keypoint coordinates (basically I'm just ignoring the other metadata in the YOLO object)
     tadpole_kp_coords = r.keypoints.xy[0].cpu().numpy()  # convert to numpy floats
 
+    print("Grabbing keypoints for tadpole spline...")
     # The keypoints don't come with our labeled names, so here I just create a dictionary for NAME : DATA
     labeled_tadpole_kp_coords = {
         "pos_rostrum": tadpole_kp_coords[0],
@@ -41,7 +53,9 @@ def process(file:str):
         "pos_tailbase_third": tadpole_kp_coords[3],
         "pos_tailtip_third": tadpole_kp_coords[4],
     }
+    print(labeled_tadpole_kp_coords)
 
+    print("Calculating distances between tadpole keypoints...")
     ## Calculate the deltas between points using our predefined absolute distance formula
     # I call them "del" because we don't really care what they're called since we're just going to sum them. Later we may care.
     labeled_tadpole_kp_deltas = {
@@ -51,6 +65,7 @@ def process(file:str):
         "del4": absolute_distance(labeled_tadpole_kp_coords["pos_tailtip_third"], labeled_tadpole_kp_coords["pos_tailtip"]),
     }
 
+    print("Drawing circles...")
     # Here I just create circles with radius 24px, color red (0,0,255) and position them in the buffered img.
     for x, y in tadpole_kp_coords:
         cv2.circle(img, (int(x), int(y)), 24, (0,0,255), -1)
@@ -58,6 +73,7 @@ def process(file:str):
     # Tuple array to store the information about the lines between the vertices. This is just more art stuff
     tadpole_connections = [(0,2), (2,3), (3,4), (4,1)]
 
+    print("Drawing connecting lines...")
     for a, b in tadpole_connections:
         x1, y1 = tadpole_kp_coords[a]
         x2, y2 = tadpole_kp_coords[b]
@@ -73,6 +89,7 @@ def process(file:str):
     # Same thing as the TADPOLE model return data: drop the metadata
     ruler_kp = s.keypoints.xy[0].cpu().numpy()  # convert to numpy
 
+    print("Grabbing keypoints for scale ticks...")
     # Unlike the named dictionary before, we only care about the x-y coordinates of each of these ruler markers, so store them in a simple array
     ruler_deltas = [
         absolute_distance(ruler_kp[0], ruler_kp[1]),
@@ -82,22 +99,27 @@ def process(file:str):
     ]
 
     # Simple mean
+    print("Calculating mean distance between ticks...")
     mean_ruler_del = sum(ruler_deltas) / len(ruler_deltas)
 
+    print("Calculating total tadpole length using mean tick distance...")
     # Divide the sum of all tadpole segment lengths by the mean ruler delta to give us units of ruler ticks (presumed 1mm)
     tadpole_length_mm = sum(labeled_tadpole_kp_deltas.values()) / mean_ruler_del
 
     # Draw similar dots on the ruler markings
+    print("Drawing circles on the scale ticks...")
     for x, y in ruler_kp:
         cv2.circle(img, (int(x), int(y)), 24, (0,0,255), -1)
 
     # Draw connecting lines between ruler dots
+    print("Drawing lines between scale tick circles...")
     for i in range(len(ruler_kp)-1):
         x1, y1 = ruler_kp[i]
         x2, y2 = ruler_kp[i+1]
         cv2.line(img, (int(x1), int(y1)), (int(x2), int(y2)), (255,0,0), 12)
 
     # Labeling the image with the tadpole length rounded to two "very roughly approximated sig-figs"
+    print("Adding finishing touch label...")
     text = f"Tadpole Length {round(tadpole_length_mm, 2)} mm"
     org = (50, 250)           # x, y position
     font = cv2.FONT_HERSHEY_SIMPLEX
@@ -109,6 +131,7 @@ def process(file:str):
     cv2.putText(img, text, org, font, font_scale, color, thickness, cv2.LINE_AA)
 
     # Finally, actually render the image
+    print("Showing you my art...")
     cv2.imshow("keypoints_bigger", img)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
