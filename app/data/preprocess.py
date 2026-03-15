@@ -14,7 +14,7 @@ def convert_to_bw_raw(image_path: str):
         raise ValueError
 
     _, bw = cv2.threshold(img, 127, 255, cv2.THRESH_BINARY)
-    bw3 = cv2.cvtColor(bw, cv2.COLOR_GRAY2BGR)
+    bw3 = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
 
     return bw3
 
