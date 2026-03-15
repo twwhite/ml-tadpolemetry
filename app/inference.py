@@ -4,7 +4,6 @@ import math # Only used for square root in absolute_distance formula because I'm
 # from IPython import embed # Ignore this, used for debugging
 from pathlib import Path # Used for grabbing local directory names on filesystem
 from ultralytics import YOLO # The machine learning package import
-from data.preprocess import convert_to_bw_raw
 
 
 """ Load the YOLO weights for the SCALE model and the TADPOLE model """
@@ -18,16 +17,9 @@ def absolute_distance(tuple1, tuple2):
 """ Process a single image file through the machine learned models """
 def process(file:str):
 
-    # SCALE model inferencing with Black & White pre-processing
-    file_bw = convert_to_bw_raw(file)
-
     print("Running scale spliner inference...")
-    scale_result = scale_spliner(file_bw, conf=0.01)
+    scale_result = scale_spliner(file)
     s = scale_result[0]
-
-    print(s.keypoints)
-    input("ENTER")
-    img = s.plot()
 
     cv2.imshow("keypoints_bigger", img)
     cv2.waitKey(0)
