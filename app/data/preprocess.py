@@ -1,7 +1,14 @@
 import os
 import cv2
+import typer
 
-def convert_to_pw(input_dir, output_dir):
+app = typer.Typer()
+
+@app.command()
+def convert_to_pw(input_dir: str, output_dir: str):
+    """
+    Convert all images in input_dir to black & white and save to output_dir with _bw suffix.
+    """
     os.makedirs(output_dir, exist_ok=True)
 
     for filename in os.listdir(input_dir):
@@ -9,17 +16,15 @@ def convert_to_pw(input_dir, output_dir):
         if not os.path.isfile(input_path):
             continue
 
-        # Load image
         img = cv2.imread(input_path, cv2.IMREAD_GRAYSCALE)
         if img is None:
             continue
 
-        # Convert to pure black & white
         _, bw = cv2.threshold(img, 127, 255, cv2.THRESH_BINARY)
 
-        # Prepare output filename
         name, ext = os.path.splitext(filename)
         output_path = os.path.join(output_dir, f"{name}_bw{ext}")
-
-        # Save
         cv2.imwrite(output_path, bw)
+
+if __name__ == "__main__":
+    app()
