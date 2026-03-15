@@ -4,8 +4,22 @@ import typer
 
 app = typer.Typer()
 
+def convert_to_bw_raw(image_path: str):
+    if not os.path.isfile(image_path):
+        raise ValueError
+
+    img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+
+    if img is None:
+        raise ValueError
+
+    _, bw = cv2.threshold(img, 127, 255, cv2.THRESH_BINARY)
+    bw3 = cv2.cvtColor(bw, cv2.COLOR_GRAY2BGR)
+
+    return bw3
+
 @app.command()
-def convert_to_pw(input_dir: str, output_dir: str):
+def convert_to_bw(input_dir: str, output_dir: str):
     """
     Convert all images in input_dir to black & white and save to output_dir with _bw suffix.
     """
@@ -16,11 +30,7 @@ def convert_to_pw(input_dir: str, output_dir: str):
         if not os.path.isfile(input_path):
             continue
 
-        img = cv2.imread(input_path, cv2.IMREAD_GRAYSCALE)
-        if img is None:
-            continue
-
-        _, bw = cv2.threshold(img, 127, 255, cv2.THRESH_BINARY)
+        bw = convert_to_bw_raw(input_path)
 
         name, ext = os.path.splitext(filename)
         output_path = os.path.join(output_dir, f"{name}_bw{ext}")
