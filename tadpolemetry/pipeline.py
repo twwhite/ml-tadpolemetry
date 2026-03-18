@@ -6,6 +6,10 @@ import cv2
 import numpy as np
 from ultralytics import YOLO
 
+from .logging import get_logger
+
+log = get_logger(__name__)
+
 
 @dataclass
 class MeasurementResult:
@@ -30,24 +34,21 @@ class MeasurementPipeline:
     SCALE_CONNECTIONS = list(zip(range(4), range(1, 5)))
 
     def __init__(self, scale_weights: Path, spline_weights: Path):
+        if not scale_weights.exists():
+            raise FileNotFoundError(f"Scale weights not found: {scale_weights}")
+        if not spline_weights.exists():
+            raise FileNotFoundError(f"Spline weights not found: {spline_weights}")
+
         self.scale_model = YOLO(scale_weights)
         self.spline_model = YOLO(spline_weights)
 
     def process(self, file: Path, output_dir: Path) -> MeasurementResult:
         img_path = str(file)
 
-        # --- Scale model ---
-        scale_result = self.scale_model(img_path)[0]
-        ruler_kp = scale_result.keypoints.xy[0].cpu().numpy()
+        if not Path(img_path).exists():
+            return MeasurementResult(file.name, None, "Image file not found")
 
-        if len(ruler_kp) < 2:
-            return MeasurementResult(file.name, None, "Scale bar not detected")
-
-        ruler_deltas = [
-            np.linalg.norm(ruler_kp[i] - ruler_kp[i + 1])
-            for i in range(len(ruler_kp) - 1)
-        ]
-        mean_ruler_delta = sum(ruler_deltas) / len(ruler_deltas)
+        log.debug(f"process start for {img_path}")
 
         # --- Tadpole model ---
         tadpole_result = self.spline_model(img_path)[0]
@@ -65,6 +66,27 @@ class MeasurementPipeline:
             np.linalg.norm(tadpole_kp[a] - tadpole_kp[b])
             for a, b in self.TADPOLE_CONNECTIONS
         ]
+
+        # --- Scale model ---
+        scale_result = self.scale_model(img_path)[0]
+        if scale_result.keypoints:
+            ruler_kp = scale_result.keypoints.xy[0].cpu().numpy()
+        else:
+            return MeasurementResult(file.name, None, "Scale keypoints not detected")
+
+        if len(ruler_kp) < 2:
+            return MeasurementResult(file.name, None, "Scale bar not detected")
+
+        ruler_deltas = [
+            np.linalg.norm(ruler_kp[i] - ruler_kp[i + 1])
+            for i in range(len(ruler_kp) - 1)
+        ]
+        mean_ruler_delta = sum(ruler_deltas) / len(ruler_deltas)
+
+        # mean_ruler_delta = 150 # Cheat code
+
+        # --- Conversion ---
+
         length_mm = sum(segment_lengths) / mean_ruler_delta
 
         # --- Annotate image ---

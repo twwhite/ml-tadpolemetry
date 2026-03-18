@@ -4,9 +4,13 @@ from datetime import datetime
 import torch
 from ultralytics import YOLO
 
+from .logging import get_logger
+
+log = get_logger(__name__)
+
+
 print(torch.cuda.is_available())
 print(torch.cuda.get_device_name(0))
-
 model = YOLO("yolo26n.pt")
 cwd = os.getcwd()
 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")

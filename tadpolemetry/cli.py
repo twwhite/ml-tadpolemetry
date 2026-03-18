@@ -1,18 +1,17 @@
+import logging
 from pathlib import Path
 
 import typer
 
+from tadpolemetry.logging import get_logger
+
 from .pipeline import MeasurementPipeline
 
+log = get_logger(__name__)
 app = typer.Typer()
 
-# TODO: Add canonincal "best" directory so we don't have to prescribe specific models
-DEFAULT_SCALE_WEIGHTS = Path(
-    "runs/scale_model_output/run_20260315_132415/weights/best.pt"
-)
-DEFAULT_SPLINE_WEIGHTS = Path(
-    "runs/spline_model_output/initial/pose/train/weights/best.pt"
-)
+DEFAULT_SCALE_WEIGHTS = Path("runs/scale_model_output/best/weights/best.pt")
+DEFAULT_SPLINE_WEIGHTS = Path("runs/spline_model_output/best/weights/best.pt")
 
 
 @app.command()
@@ -25,7 +24,11 @@ def measure(
     spline_weights: Path = typer.Option(
         DEFAULT_SPLINE_WEIGHTS, help="Spline model weights"
     ),
+    verbose: bool = typer.Option(False, "--verbose", "-v"),
 ):
+    if verbose:
+        logging.getLogger("tadpolemetry").setLevel(logging.DEBUG)
+
     pipeline = MeasurementPipeline(scale_weights, spline_weights)
 
     for file_path in input_dir.iterdir():
