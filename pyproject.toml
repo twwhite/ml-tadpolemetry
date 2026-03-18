@@ -6,7 +6,11 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "ipython>=9.11.0",
-    "torch>=2.10.0",
     "typer>=0.24.1",
     "ultralytics>=8.4.22",
+]
+
+[dependency-groups]
+dev = [
+    "torch>=2.10.0",
 ]

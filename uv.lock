@@ -521,18 +521,24 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "ipython" },
-    { name = "torch" },
     { name = "typer" },
     { name = "ultralytics" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "torch" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "ipython", specifier = ">=9.11.0" },
-    { name = "torch", specifier = ">=2.10.0" },
     { name = "typer", specifier = ">=0.24.1" },
     { name = "ultralytics", specifier = ">=8.4.22" },
 ]
+
+[package.metadata.requires-dev]
+dev = [{ name = "torch", specifier = ">=2.10.0" }]
 
 [[package]]
 name = "mpmath"
