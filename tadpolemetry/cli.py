@@ -2,7 +2,7 @@ from pathlib import Path
 
 import typer
 
-from tadpolemetry.cli import MeasurementPipeline
+from .pipeline import MeasurementPipeline
 
 app = typer.Typer()
 

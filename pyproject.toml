@@ -15,3 +15,5 @@ packages = ["tadpolemetry"]
 dev = [
     "torch>=2.10.0",
 ]
+[project.scripts]
+tadpolemetry = "tadpolemetry.cli:app"
