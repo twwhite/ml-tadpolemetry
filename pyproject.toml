@@ -9,7 +9,8 @@ dependencies = [
     "typer>=0.24.1",
     "ultralytics>=8.4.22",
 ]
-
+[tool.setuptools]
+packages = ["tadpolemetry"]
 [dependency-groups]
 dev = [
     "torch>=2.10.0",
