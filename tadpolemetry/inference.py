@@ -7,12 +7,8 @@ import cv2  # Computer vision package import - has drawing tools so we can print
 from ultralytics import YOLO  # The machine learning package import
 
 """ Load the YOLO weights for the SCALE model and the TADPOLE model """
-scale_spliner = YOLO(
-    "tadpolemetry/models/scale_model_output/run_20260315_085612/weights/best.pt"
-)
-tadpole_spliner = YOLO(
-    "tadpolemetry/models/spline_model_output/initial/pose/train/weights/best.pt"
-)
+scale_spliner = YOLO("runs/scale_model_output/run_20260315_132415/weights/best.pt")
+tadpole_spliner = YOLO("runs/spline_model_output/initial/pose/train/weights/best.pt")
 
 """ Absolute distance formula sqrt((x2-x1)^2 + (y2-y1)^2 )"""
 
@@ -152,7 +148,7 @@ def main():
     print("Hello from tadpolemetry!")
 
     # Loop through all files in production/input directory
-    for file_path in Path("tadpolemetry/data/production/input").iterdir():
+    for file_path in Path("data/inference/input_data").iterdir():
         try:
             if file_path.is_file():
                 # execute the process function for one file at a time
