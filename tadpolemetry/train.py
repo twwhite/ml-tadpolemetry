@@ -1,5 +1,6 @@
 import os
 from datetime import datetime
+from pathlib import Path
 
 import torch
 from ultralytics import YOLO
@@ -9,21 +10,52 @@ from .logging import get_logger
 log = get_logger(__name__)
 
 
-print(torch.cuda.is_available())
-print(torch.cuda.get_device_name(0))
-model = YOLO("yolo26n.pt")
-cwd = os.getcwd()
-timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+# model = YOLO("yolo26n.pt")
+# cwd = os.getcwd()
+# timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-model_name = "scale"
-model.train(
-    data=f"data/training/configs/config_{model_name}_model.yml",
-    epochs=100,
-    batch=32,
-    imgsz=640,
-    augment=True,
-    project=f"{cwd}/tadpolemetry/models/{model_name}_model_output",
-    name=f"run_{timestamp}",
-)
+# model_name = "scale"
+# model.train(
+#     data=f"data/training/configs/config_{model_name}_model.yml",
+#     epochs=100,
+#     batch=32,
+#     imgsz=640,
+#     augment=True,
+#     project=f"{cwd}/tadpolemetry/models/{model_name}_model_output",
+#     name=f"run_{timestamp}",
+# )
 
 # model.train(data='configs/config_spline_model.yaml', epochs=100, batch=32, imgsz=640, augment=True)
+
+VALID_MODELS = ["scale", "spline"]
+
+
+def train(
+    model_type: str, config: Path | None = None, epochs: int = 100, batch: int = 32
+):
+    print(torch.cuda.is_available())
+    print(torch.cuda.get_device_name(0))
+    if model_type not in VALID_MODELS:
+        raise ValueError(f"model_type must be one of {VALID_MODELS}")
+
+    log.info(f"CUDA available: {torch.cuda.is_available()}")
+    if torch.cuda.is_available():
+        log.info(f"GPU: {torch.cuda.get_device_name(0)}")
+
+    config = config or Path(f"data/training/configs/config_{model_type}_model.yml")
+    if not config.exists():
+        raise FileNotFoundError(f"Config not found: {config}")
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    cwd = os.getcwd()
+
+    model = YOLO("yolo26n.pt")
+    model.train(
+        data=str(config),
+        epochs=epochs,
+        batch=batch,
+        imgsz=640,
+        augment=True,
+        project=f"{cwd}/runs/{model_type}_model_output",
+        name=f"run_{timestamp}",
+    )

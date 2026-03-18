@@ -15,6 +15,18 @@ DEFAULT_SPLINE_WEIGHTS = Path("runs/spline_model_output/best/weights/best.pt")
 
 
 @app.command()
+def train(
+    model_type: str = typer.Argument(..., help="Model to train: scale or spline"),
+    config: Path = typer.Option(None, help="Path to training config YAML"),
+    epochs: int = typer.Option(100),
+    batch: int = typer.Option(32),
+):
+    from .train import train as run_train
+
+    run_train(model_type, config, epochs, batch)
+
+
+@app.command()
 def measure(
     input_dir: Path = typer.Argument(..., help="Directory of images to process"),
     output_dir: Path = typer.Argument(..., help="Directory to write results"),

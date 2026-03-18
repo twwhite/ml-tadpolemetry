@@ -35,19 +35,23 @@ class MeasurementPipeline:
     SCALE_MODEL_CONF = 0.25
     SPLINE_MODEL_CONF = 0.25
 
-    SKIP_SCALE = True
-    SKIP_SPLINE = False
-
     def __init__(self, scale_weights: Path, spline_weights: Path):
         if not scale_weights.exists():
             raise FileNotFoundError(f"Scale weights not found: {scale_weights}")
+
         if not spline_weights.exists():
             raise FileNotFoundError(f"Spline weights not found: {spline_weights}")
 
         self.scale_model = YOLO(scale_weights)
         self.spline_model = YOLO(spline_weights)
 
-    def process(self, file: Path, output_dir: Path) -> MeasurementResult:
+    def process(
+        self,
+        file: Path,
+        output_dir: Path,
+        skip_scale: bool = False,
+        skip_spline: bool = False,
+    ) -> MeasurementResult:
         img_path = str(file)
 
         if not Path(img_path).exists():
@@ -56,8 +60,7 @@ class MeasurementPipeline:
         log.debug(f"process start for {img_path}")
 
         # --- Scale model ---
-
-        if self.SKIP_SCALE:
+        if skip_scale:
             mean_ruler_delta = 150  # Start value
         else:
             scale_result = self.scale_model(img_path, conf=self.SCALE_MODEL_CONF)[0]
@@ -111,7 +114,7 @@ class MeasurementPipeline:
             x2, y2 = tadpole_kp[b]
             cv2.line(img, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 12)
 
-        if not self.SKIP_SCALE:
+        if not skip_scale:
             for x, y in ruler_kp:
                 cv2.circle(img, (int(x), int(y)), 24, (0, 0, 255), -1)
             for a, b in self.SCALE_CONNECTIONS:

@@ -20,6 +20,20 @@ def pipeline():
     return MeasurementPipeline(SCALE_WEIGHTS, SPLINE_WEIGHTS)
 
 
+# # --- MeasurementResult ---
+# def test_basic_scale(pipeline, tmp_path):
+#     result = pipeline.process(TEST_IMAGE, tmp_path, skip_spline=True)
+
+#     assert result.success, f"Pipeline failed: {result.failure_reason}"
+
+
+# --- MeasurementResult ---
+def test_basic_spline(pipeline, tmp_path):
+    result = pipeline.process(TEST_IMAGE, tmp_path, skip_scale=True)
+
+    assert result.success, f"Pipeline failed: {result.failure_reason}"
+
+
 # --- MeasurementResult ---
 def test_known_length(pipeline, tmp_path):
     result = pipeline.process(TEST_IMAGE, tmp_path)
