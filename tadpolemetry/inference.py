@@ -10,25 +10,19 @@ from ultralytics import YOLO  # The machine learning package import
 scale_spliner = YOLO("runs/scale_model_output/run_20260315_132415/weights/best.pt")
 tadpole_spliner = YOLO("runs/spline_model_output/initial/pose/train/weights/best.pt")
 
-""" Absolute distance formula sqrt((x2-x1)^2 + (y2-y1)^2 )"""
-
 
 def absolute_distance(tuple1, tuple2):
+    """Absolute distance formula sqrt((x2-x1)^2 + (y2-y1)^2 )"""
+
     return math.sqrt(((tuple1[0] - tuple2[0]) ** 2) + ((tuple1[1] - tuple2[1]) ** 2))
 
 
-""" Process a single image file through the machine learned models """
-
-
 def process(file: str):
+    """Process a single image file through the machine learned models"""
 
     print("Running scale spliner inference...")
     scale_result = scale_spliner(file)
     s = scale_result[0]
-
-    cv2.imshow("keypoints_bigger", img)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
 
     # TADPOLE model inferencing
     print("Running tadpole spliner inference...")
