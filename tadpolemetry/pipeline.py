@@ -32,6 +32,11 @@ class MeasurementPipeline:
     ]
     TADPOLE_CONNECTIONS = [(0, 2), (2, 3), (3, 4), (4, 1)]
     SCALE_CONNECTIONS = list(zip(range(4), range(1, 5)))
+    SCALE_MODEL_CONF = 0.25
+    SPLINE_MODEL_CONF = 0.25
+
+    SKIP_SCALE = True
+    SKIP_SPLINE = False
 
     def __init__(self, scale_weights: Path, spline_weights: Path):
         if not scale_weights.exists():
@@ -50,12 +55,40 @@ class MeasurementPipeline:
 
         log.debug(f"process start for {img_path}")
 
+        # --- Scale model ---
+
+        if self.SKIP_SCALE:
+            mean_ruler_delta = 150  # Start value
+        else:
+            scale_result = self.scale_model(img_path, conf=self.SCALE_MODEL_CONF)[0]
+
+            if scale_result.keypoints:
+                ruler_kp = scale_result.keypoints.xy[0].cpu().numpy()
+            else:
+                log.warning(f"No scale keypoints detected for {img_path}. Canceling.")
+                return MeasurementResult(
+                    file.name, None, "Scale keypoints not detected"
+                )
+
+            if len(ruler_kp) < 2:
+                log.warning(f"No scale bar detected {img_path}")
+                return MeasurementResult(file.name, None, "Scale bar not detected")
+
+            ruler_deltas = [
+                np.linalg.norm(ruler_kp[i] - ruler_kp[i + 1])
+                for i in range(len(ruler_kp) - 1)
+            ]
+
+            mean_ruler_delta = sum(ruler_deltas) / len(ruler_deltas)
+        log.debug(f"Calculated mean ruler delta of {mean_ruler_delta}px per 1mm")
+
         # --- Tadpole model ---
-        tadpole_result = self.spline_model(img_path)[0]
+        tadpole_result = self.spline_model(img_path, conf=self.SPLINE_MODEL_CONF)[0]
         img = tadpole_result.plot()
         tadpole_kp = tadpole_result.keypoints.xy[0].cpu().numpy()
 
         if len(tadpole_kp) < 5:
+            log.warning(f"Too few tadpole keypoints detected {img_path}")
             return MeasurementResult(
                 file.name, None, "Too few tadpole keypoints detected"
             )
@@ -66,25 +99,6 @@ class MeasurementPipeline:
             np.linalg.norm(tadpole_kp[a] - tadpole_kp[b])
             for a, b in self.TADPOLE_CONNECTIONS
         ]
-
-        # --- Scale model ---
-        scale_result = self.scale_model(img_path)[0]
-        if scale_result.keypoints:
-            ruler_kp = scale_result.keypoints.xy[0].cpu().numpy()
-        else:
-            return MeasurementResult(file.name, None, "Scale keypoints not detected")
-
-        if len(ruler_kp) < 2:
-            return MeasurementResult(file.name, None, "Scale bar not detected")
-
-        ruler_deltas = [
-            np.linalg.norm(ruler_kp[i] - ruler_kp[i + 1])
-            for i in range(len(ruler_kp) - 1)
-        ]
-        mean_ruler_delta = sum(ruler_deltas) / len(ruler_deltas)
-
-        # mean_ruler_delta = 150 # Cheat code
-
         # --- Conversion ---
 
         length_mm = sum(segment_lengths) / mean_ruler_delta
@@ -97,13 +111,16 @@ class MeasurementPipeline:
             x2, y2 = tadpole_kp[b]
             cv2.line(img, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 12)
 
-        for x, y in ruler_kp:
-            cv2.circle(img, (int(x), int(y)), 24, (0, 0, 255), -1)
-        for a, b in self.SCALE_CONNECTIONS:
-            if a < len(ruler_kp) and b < len(ruler_kp):
-                x1, y1 = ruler_kp[a]
-                x2, y2 = ruler_kp[b]
-                cv2.line(img, (int(x1), int(y1)), (int(x2), int(y2)), (255, 0, 0), 12)
+        if not self.SKIP_SCALE:
+            for x, y in ruler_kp:
+                cv2.circle(img, (int(x), int(y)), 24, (0, 0, 255), -1)
+            for a, b in self.SCALE_CONNECTIONS:
+                if a < len(ruler_kp) and b < len(ruler_kp):
+                    x1, y1 = ruler_kp[a]
+                    x2, y2 = ruler_kp[b]
+                    cv2.line(
+                        img, (int(x1), int(y1)), (int(x2), int(y2)), (255, 0, 0), 12
+                    )
 
         text = f"Tadpole Length {round(length_mm, 2)} mm"
         cv2.putText(
