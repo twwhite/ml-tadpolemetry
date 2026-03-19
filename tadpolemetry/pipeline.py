@@ -4,6 +4,7 @@ from pathlib import Path
 
 import cv2
 import numpy as np
+from IPython import embed
 from ultralytics import YOLO
 
 from .logging import get_logger
@@ -22,6 +23,36 @@ class MeasurementResult:
         return self.length_mm is not None
 
 
+@dataclass
+class SplineResult:
+    labeled_kp: dict
+    segment_lengths: list[float]
+
+
+@dataclass
+class ScaleResult:
+    mean_ruler_delta_px: float
+    tick_coords: list[tuple]
+
+
+class TadpolemetryError(Exception):
+    pass
+
+
+class ScaleNotDetectedError(TadpolemetryError):
+    def __init__(self, filename: str, reason: str):
+        self.filename = filename
+        self.reason = reason
+        super().__init__(f"{filename}: {reason}")
+
+
+class SplineNotDetectedError(TadpolemetryError):
+    def __init__(self, filename: str, reason: str):
+        self.filename = filename
+        self.reason = reason
+        super().__init__(f"{filename}: {reason}")
+
+
 class MeasurementPipeline:
     TADPOLE_KEYPOINTS = [
         "pos_rostrum",
@@ -30,8 +61,12 @@ class MeasurementPipeline:
         "pos_tailbase_third",
         "pos_tailtip_third",
     ]
-    TADPOLE_CONNECTIONS = [(0, 2), (2, 3), (3, 4), (4, 1)]
-    SCALE_CONNECTIONS = list(zip(range(4), range(1, 5)))
+    TADPOLE_CONNECTIONS = [
+        ("pos_rostrum", "pos_tailbase"),
+        ("pos_tailbase", "pos_tailbase_third"),
+        ("pos_tailbase_third", "pos_tailtip_third"),
+        ("pos_tailtip_third", "pos_tailtip"),
+    ]
     SCALE_MODEL_CONF = 0.25
     SPLINE_MODEL_CONF = 0.25
 
@@ -45,85 +80,79 @@ class MeasurementPipeline:
         self.scale_model = YOLO(scale_weights)
         self.spline_model = YOLO(spline_weights)
 
-    def process(
-        self,
-        file: Path,
-        output_dir: Path,
-        skip_scale: bool = False,
-        skip_spline: bool = False,
-    ) -> MeasurementResult:
-        img_path = str(file)
+    def _run_scale_model(self, img_path: str, skip_scale: bool = False) -> ScaleResult:
+        """Execute scale model, return ruler measuremenet delta"""
+        scale_result = self.scale_model(img_path, conf=self.SCALE_MODEL_CONF)[0]
 
-        if not Path(img_path).exists():
-            return MeasurementResult(file.name, None, "Image file not found")
-
-        log.debug(f"process start for {img_path}")
-
-        # --- Scale model ---
-        if skip_scale:
-            mean_ruler_delta = 150  # Start value
-        else:
-            scale_result = self.scale_model(img_path, conf=self.SCALE_MODEL_CONF)[0]
-
-            if scale_result.keypoints:
-                ruler_kp = scale_result.keypoints.xy[0].cpu().numpy()
-            else:
-                log.warning(f"No scale keypoints detected for {img_path}. Canceling.")
-                return MeasurementResult(
-                    file.name, None, "Scale keypoints not detected"
-                )
-
-            if len(ruler_kp) < 2:
-                log.warning(f"No scale bar detected {img_path}")
-                return MeasurementResult(file.name, None, "Scale bar not detected")
-
-            ruler_deltas = [
-                np.linalg.norm(ruler_kp[i] - ruler_kp[i + 1])
-                for i in range(len(ruler_kp) - 1)
+        if scale_result.boxes:
+            ruler_ticks_xywh = [
+                [float(j) for j in n.xywh[0]] for n in scale_result.boxes
             ]
+            ruler_ticks_centers = [(n[0], n[1]) for n in ruler_ticks_xywh]
+        else:
+            raise ScaleNotDetectedError(img_path, "No scale keypoints detected.")
 
-            mean_ruler_delta = sum(ruler_deltas) / len(ruler_deltas)
-        log.debug(f"Calculated mean ruler delta of {mean_ruler_delta}px per 1mm")
+        # ruler_deltas = [
+        #     np.linalg.norm(ruler_kp[i] - ruler_kp[i + 1])
+        #     for i in range(len(ruler_kp) - 1)
+        # ]
 
-        # --- Tadpole model ---
+        mean_ruler_delta_px = 150 if skip_scale else 150
+        # mean_ruler_delta_px = float(sum(ruler_deltas) / len(ruler_deltas))
+
+        return ScaleResult(
+            mean_ruler_delta_px=mean_ruler_delta_px, tick_coords=ruler_ticks_centers
+        )
+
+    def _run_spline_model(self, img_path: str) -> SplineResult:
+        """Execute spline model, return body keypoints"""
         tadpole_result = self.spline_model(img_path, conf=self.SPLINE_MODEL_CONF)[0]
-        img = tadpole_result.plot()
         tadpole_kp = tadpole_result.keypoints.xy[0].cpu().numpy()
 
         if len(tadpole_kp) < 5:
-            log.warning(f"Too few tadpole keypoints detected {img_path}")
-            return MeasurementResult(
-                file.name, None, "Too few tadpole keypoints detected"
+            raise SplineNotDetectedError(
+                img_path, "Incomplete spline keypoints detected."
             )
 
         labeled_kp = dict(zip(self.TADPOLE_KEYPOINTS, tadpole_kp))
 
         segment_lengths = [
-            np.linalg.norm(tadpole_kp[a] - tadpole_kp[b])
+            float(np.linalg.norm(labeled_kp[a] - labeled_kp[b]))
             for a, b in self.TADPOLE_CONNECTIONS
         ]
-        # --- Conversion ---
+        return SplineResult(labeled_kp=labeled_kp, segment_lengths=segment_lengths)
 
-        length_mm = sum(segment_lengths) / mean_ruler_delta
+    def process(
+        self, file: Path, output_dir: Path, skip_scale: bool = False
+    ) -> MeasurementResult:
+
+        img_path = str(file)
+
+        if not Path(img_path).exists():
+            return MeasurementResult(file.name, None, "Image file not found")
+
+        img = cv2.imread(img_path)
+
+        if img is None:
+            return MeasurementResult(file.name, None, "Failed to load image")
+
+        log.debug(f"process start for {img_path}")
+
+        ruler_data = self._run_scale_model(img_path, skip_scale=skip_scale)
+        spline_data = self._run_spline_model(img_path)
+
+        length_mm = sum(spline_data.segment_lengths) / ruler_data.mean_ruler_delta_px
 
         # --- Annotate image ---
-        for x, y in tadpole_kp:
+        for x, y in spline_data.labeled_kp.values():
             cv2.circle(img, (int(x), int(y)), 24, (0, 0, 255), -1)
         for a, b in self.TADPOLE_CONNECTIONS:
-            x1, y1 = tadpole_kp[a]
-            x2, y2 = tadpole_kp[b]
+            x1, y1 = spline_data.labeled_kp[a]
+            x2, y2 = spline_data.labeled_kp[b]
             cv2.line(img, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 12)
 
-        if not skip_scale:
-            for x, y in ruler_kp:
-                cv2.circle(img, (int(x), int(y)), 24, (0, 0, 255), -1)
-            for a, b in self.SCALE_CONNECTIONS:
-                if a < len(ruler_kp) and b < len(ruler_kp):
-                    x1, y1 = ruler_kp[a]
-                    x2, y2 = ruler_kp[b]
-                    cv2.line(
-                        img, (int(x1), int(y1)), (int(x2), int(y2)), (255, 0, 0), 12
-                    )
+        for x, y in ruler_data.tick_coords:
+            cv2.circle(img, (int(x), int(y)), 24, (0, 0, 255), -1)
 
         text = f"Tadpole Length {round(length_mm, 2)} mm"
         cv2.putText(
