@@ -1,5 +1,6 @@
 import csv
 import logging
+import random
 from datetime import datetime
 from pathlib import Path
 
@@ -14,6 +15,7 @@ app = typer.Typer()
 
 DEFAULT_SCALE_WEIGHTS = Path("runs/scale_model_output/best/weights/best.pt")
 DEFAULT_SPLINE_WEIGHTS = Path("runs/spline_model_output/best/weights/best.pt")
+DEFAULT_RANDOM_SAMPLE_PCT = 5
 
 
 @app.command()
@@ -38,6 +40,10 @@ def measure(
     spline_weights: Path = typer.Option(
         DEFAULT_SPLINE_WEIGHTS, help="Spline model weights"
     ),
+    random_sample_pct: int = typer.Option(
+        DEFAULT_RANDOM_SAMPLE_PCT,
+        help="Percentage of images to flag for manual validation",
+    ),
     verbose: bool = typer.Option(False, "--verbose", "-v"),
 ):
     if verbose:
@@ -55,8 +61,9 @@ def measure(
             fieldnames=[
                 "filename",
                 "length_mm",
-                "failure_reason",
                 "scale_mean_interval_px",
+                "random_validate",
+                "failure_reason",
             ],
         )
         writer.writeheader()
@@ -75,6 +82,7 @@ def measure(
                         "length_mm": result.length_mm,
                         "scale_mean_interval_px": result.mean_ruler_delta_px,
                         "failure_reason": result.failure_reason,
+                        "random_validate": random.randrange(100) < random_sample_pct,
                     }
                 )
 
