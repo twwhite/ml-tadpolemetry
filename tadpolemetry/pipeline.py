@@ -32,8 +32,8 @@ class SplineResult:
 @dataclass
 class ScaleResult:
     mean_ruler_delta_px: float
-    tick_coords: list[tuple]
-
+    a_side_tick_coords: list[tuple]
+    b_side_tick_coords: list[tuple]
 
 class TadpolemetryError(Exception):
     pass
@@ -84,11 +84,19 @@ class MeasurementPipeline:
         """Execute scale model, return ruler measuremenet delta"""
         scale_result = self.scale_model(img_path, conf=self.SCALE_MODEL_CONF)[0]
 
+        a_ruler_ticks_centers = []
+        b_ruler_ticks_centers = []
+
         if scale_result.boxes:
             ruler_ticks_xywh = [
                 [float(j) for j in n.xywh[0]] for n in scale_result.boxes
             ]
-            ruler_ticks_centers = [(n[0], n[1]) for n in ruler_ticks_xywh]
+            for tick in ruler_ticks_xywh:
+                if tick[2] > tick[3]:
+                    b_ruler_ticks_centers.append((tick[0],tick[1]))
+                else:
+                    a_ruler_ticks_centers.append((tick[0], tick[1]))
+
         else:
             raise ScaleNotDetectedError(img_path, "No scale keypoints detected.")
 
@@ -97,11 +105,20 @@ class MeasurementPipeline:
         #     for i in range(len(ruler_kp) - 1)
         # ]
 
-        mean_ruler_delta_px = 150 if skip_scale else 150
+        mean_ruler_delta_px = 150 if skip_scale else 0
         # mean_ruler_delta_px = float(sum(ruler_deltas) / len(ruler_deltas))
+        if len(a_ruler_ticks_centers) > len(b_ruler_ticks_centers):
+            log.debug("A ruler")
+            mean_ruler_delta_px = self._mean_interval_from_group(a_ruler_ticks_centers)
+        else:
+            log.debug("B ruler")
+            mean_ruler_delta_px = self._mean_interval_from_group(b_ruler_ticks_centers)
+
 
         return ScaleResult(
-            mean_ruler_delta_px=mean_ruler_delta_px, tick_coords=ruler_ticks_centers
+            mean_ruler_delta_px=mean_ruler_delta_px,
+            a_side_tick_coords=a_ruler_ticks_centers,
+            b_side_tick_coords=b_ruler_ticks_centers
         )
 
     def _run_spline_model(self, img_path: str) -> SplineResult:
@@ -122,6 +139,44 @@ class MeasurementPipeline:
         ]
         return SplineResult(labeled_kp=labeled_kp, segment_lengths=segment_lengths)
 
+    def _mean_interval_from_group(self, centers: list[tuple]) -> float:
+
+        log.debug(f"num ruler ticks: {len(centers)}")
+        """Return mean px interval between adjacent ticks in a group."""
+        pts = np.array(centers)
+
+        x_spread = pts[:, 0].max() - pts[:, 0].min()
+        y_spread = pts[:, 1].max() - pts[:, 1].min()
+        dominant_axis = 0 if x_spread > y_spread else 1  # 0=x (horizontal), 1=y (vertical)
+
+        sorted_pts = pts[pts[:, dominant_axis].argsort()]
+        adjacent_intervals = np.diff(sorted_pts[:, dominant_axis])
+
+        log.debug(f"adjacent {adjacent_intervals}")
+
+        median_interval = np.median(adjacent_intervals)
+
+        THRESHOLD_FILTER_PCT = 0.5
+
+        filtered_intervals = adjacent_intervals[
+            (adjacent_intervals >= (1-THRESHOLD_FILTER_PCT) * median_interval) &
+            (adjacent_intervals <= (1+THRESHOLD_FILTER_PCT) * median_interval)
+        ]
+
+        log.debug(f"filtered {filtered_intervals}")
+
+        if len(filtered_intervals) == 0:
+            raise ScaleNotDetectedError(img_path, "All tick intervals filtered as outliers")
+
+        n_filtered = len(adjacent_intervals) - len(filtered_intervals)
+        if n_filtered > 0:
+            log.debug(f"Filtered {n_filtered} outlier tick intervals")
+
+
+        input("GO")
+
+        return float(filtered_intervals.mean())
+
     def process(
         self, file: Path, output_dir: Path, skip_scale: bool = False
     ) -> MeasurementResult:
@@ -141,6 +196,8 @@ class MeasurementPipeline:
         ruler_data = self._run_scale_model(img_path, skip_scale=skip_scale)
         spline_data = self._run_spline_model(img_path)
 
+        log.debug(f"ruler delta: {ruler_data.mean_ruler_delta_px}")
+
         length_mm = sum(spline_data.segment_lengths) / ruler_data.mean_ruler_delta_px
 
         # --- Annotate image ---
@@ -151,10 +208,14 @@ class MeasurementPipeline:
             x2, y2 = spline_data.labeled_kp[b]
             cv2.line(img, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 12)
 
-        for x, y in ruler_data.tick_coords:
-            cv2.circle(img, (int(x), int(y)), 24, (0, 0, 255), -1)
+        for x, y in ruler_data.a_side_tick_coords:
+            cv2.circle(img, (int(x), int(y)), 24, (255, 0, 255), -1)
+
+        for x, y in ruler_data.b_side_tick_coords:
+            cv2.circle(img, (int(x), int(y)), 24, (0, 255, 255), -1)
 
         text = f"Tadpole Length {round(length_mm, 2)} mm"
+        log.debug(text)
         cv2.putText(
             img,
             text,
@@ -168,6 +229,12 @@ class MeasurementPipeline:
 
         # --- Save annotated image ---
         output_dir.mkdir(parents=True, exist_ok=True)
-        cv2.imwrite(str(output_dir / file.name), img)
+
+        # cv2.imwrite(str(output_dir / file.name), img)
+
+        cv2.imshow('image',img)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+        input("DONE")
 
         return MeasurementResult(file.name, length_mm, None)
