@@ -16,6 +16,7 @@ app = typer.Typer()
 DEFAULT_SCALE_WEIGHTS = Path("runs/scale_model_output/best/weights/best.pt")
 DEFAULT_SPLINE_WEIGHTS = Path("runs/spline_model_output/best/weights/best.pt")
 DEFAULT_RANDOM_SAMPLE_PCT = 5
+IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".tiff", ".bmp"}
 
 
 @app.command()
@@ -69,7 +70,7 @@ def measure(
         writer.writeheader()
 
         for file_path in input_dir.iterdir():
-            if file_path.is_file():
+            if file_path.is_file() and file_path.suffix.lower() in IMAGE_EXTENSIONS:
                 try:
                     result = pipeline.process(file_path, output_dir)
                 except Exception as e:
