@@ -34,6 +34,8 @@ class ScaleResult:
     mean_ruler_delta_px: float
     a_side_tick_coords: list[tuple]
     b_side_tick_coords: list[tuple]
+    side_used: str
+
 
 class TadpolemetryError(Exception):
     pass
@@ -68,7 +70,7 @@ class MeasurementPipeline:
         ("pos_tailtip_third", "pos_tailtip"),
     ]
     SCALE_MODEL_CONF = 0.25
-    SPLINE_MODEL_CONF = 0.25
+    SPLINE_MODEL_CONF = 0.5
 
     def __init__(self, scale_weights: Path, spline_weights: Path):
         if not scale_weights.exists():
@@ -93,7 +95,7 @@ class MeasurementPipeline:
             ]
             for tick in ruler_ticks_xywh:
                 if tick[2] > tick[3]:
-                    b_ruler_ticks_centers.append((tick[0],tick[1]))
+                    b_ruler_ticks_centers.append((tick[0], tick[1]))
                 else:
                     a_ruler_ticks_centers.append((tick[0], tick[1]))
 
@@ -108,17 +110,17 @@ class MeasurementPipeline:
         mean_ruler_delta_px = 150 if skip_scale else 0
         # mean_ruler_delta_px = float(sum(ruler_deltas) / len(ruler_deltas))
         if len(a_ruler_ticks_centers) > len(b_ruler_ticks_centers):
-            log.debug("A ruler")
             mean_ruler_delta_px = self._mean_interval_from_group(a_ruler_ticks_centers)
+            side_used = "TOP"
         else:
-            log.debug("B ruler")
             mean_ruler_delta_px = self._mean_interval_from_group(b_ruler_ticks_centers)
-
+            side_used = "RIGHT"
 
         return ScaleResult(
             mean_ruler_delta_px=mean_ruler_delta_px,
             a_side_tick_coords=a_ruler_ticks_centers,
-            b_side_tick_coords=b_ruler_ticks_centers
+            b_side_tick_coords=b_ruler_ticks_centers,
+            side_used=side_used,
         )
 
     def _run_spline_model(self, img_path: str) -> SplineResult:
@@ -147,7 +149,9 @@ class MeasurementPipeline:
 
         x_spread = pts[:, 0].max() - pts[:, 0].min()
         y_spread = pts[:, 1].max() - pts[:, 1].min()
-        dominant_axis = 0 if x_spread > y_spread else 1  # 0=x (horizontal), 1=y (vertical)
+        dominant_axis = (
+            0 if x_spread > y_spread else 1
+        )  # 0=x (horizontal), 1=y (vertical)
 
         sorted_pts = pts[pts[:, dominant_axis].argsort()]
         adjacent_intervals = np.diff(sorted_pts[:, dominant_axis])
@@ -159,21 +163,19 @@ class MeasurementPipeline:
         THRESHOLD_FILTER_PCT = 0.5
 
         filtered_intervals = adjacent_intervals[
-            (adjacent_intervals >= (1-THRESHOLD_FILTER_PCT) * median_interval) &
-            (adjacent_intervals <= (1+THRESHOLD_FILTER_PCT) * median_interval)
+            (adjacent_intervals >= (1 - THRESHOLD_FILTER_PCT) * median_interval)
+            & (adjacent_intervals <= (1 + THRESHOLD_FILTER_PCT) * median_interval)
         ]
 
         log.debug(f"filtered {filtered_intervals}")
 
         if len(filtered_intervals) == 0:
-            raise ScaleNotDetectedError(img_path, "All tick intervals filtered as outliers")
+            log.error("No intervals after filtering. Odd!")
+            raise TadpolemetryError()
 
         n_filtered = len(adjacent_intervals) - len(filtered_intervals)
         if n_filtered > 0:
             log.debug(f"Filtered {n_filtered} outlier tick intervals")
-
-
-        input("GO")
 
         return float(filtered_intervals.mean())
 
@@ -214,27 +216,36 @@ class MeasurementPipeline:
         for x, y in ruler_data.b_side_tick_coords:
             cv2.circle(img, (int(x), int(y)), 24, (0, 255, 255), -1)
 
-        text = f"Tadpole Length {round(length_mm, 2)} mm"
-        log.debug(text)
-        cv2.putText(
-            img,
-            text,
-            (50, 250),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            2,
-            (255, 255, 255),
-            8,
-            cv2.LINE_AA,
-        )
+        diag_text = [
+            f"Tadpole Length {round(length_mm, 2)} mm",
+            f"Ruler spacing {ruler_data.mean_ruler_delta_px} px",
+            f"Ruler axis: {ruler_data.side_used} side",
+        ]
+
+        line_start = 250
+        for i, text in enumerate(diag_text):
+            cv2.putText(
+                img,
+                text,
+                (50, line_start + (i * 80)),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                2,
+                (255, 255, 255),
+                8,
+                cv2.LINE_AA,
+            )
 
         # --- Save annotated image ---
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        # cv2.imwrite(str(output_dir / file.name), img)
+        cv2.imwrite(str(output_dir / file.name), img)
 
-        cv2.imshow('image',img)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
-        input("DONE")
+        # cv2.namedWindow("tadpole", cv2.WINDOW_NORMAL)
+        # cv2.resizeWindow("tadpole", 800, 600)
+        # cv2.imshow("tadpole", img)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
+
+        # input("Press enter to continue...")
 
         return MeasurementResult(file.name, length_mm, None)

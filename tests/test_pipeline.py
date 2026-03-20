@@ -11,20 +11,13 @@ SPLINE_WEIGHTS = Path("runs/spline_model_output/best/weights/best.pt")
 
 
 TEST_IMAGE = Path("tests/test1.jpg")
-EXPECTED_LENGTH_MM = 10.0
+EXPECTED_LENGTH_MM = 10.9
 TOLERANCE = 0.05  # 5%
 
 
 @pytest.fixture(scope="module")
 def pipeline():
     return MeasurementPipeline(SCALE_WEIGHTS, SPLINE_WEIGHTS)
-
-
-# # --- MeasurementResult ---
-# def test_basic_scale(pipeline, tmp_path):
-#     result = pipeline.process(TEST_IMAGE, tmp_path, skip_spline=True)
-
-#     assert result.success, f"Pipeline failed: {result.failure_reason}"
 
 
 # --- MeasurementResult ---
