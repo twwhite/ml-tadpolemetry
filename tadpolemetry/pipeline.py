@@ -16,6 +16,7 @@ log = get_logger(__name__)
 class MeasurementResult:
     filename: str
     length_mm: float | None
+    mean_ruler_delta_px: float | None
     failure_reason: str | None
 
     @property
@@ -186,12 +187,12 @@ class MeasurementPipeline:
         img_path = str(file)
 
         if not Path(img_path).exists():
-            return MeasurementResult(file.name, None, "Image file not found")
+            return MeasurementResult(file.name, None, None, "Image file not found")
 
         img = cv2.imread(img_path)
 
         if img is None:
-            return MeasurementResult(file.name, None, "Failed to load image")
+            return MeasurementResult(file.name, None, None, "Failed to load image")
 
         log.debug(f"process start for {img_path}")
 
@@ -235,11 +236,9 @@ class MeasurementPipeline:
                 cv2.LINE_AA,
             )
 
-        # --- Save annotated image ---
-        output_dir.mkdir(parents=True, exist_ok=True)
-
-        cv2.imwrite(str(output_dir / file.name), img)
-
+        # --- Save annotated image (OPTIONAL) ---
+        # output_dir.mkdir(parents=True, exist_ok=True)
+        # cv2.imwrite(str(output_dir / file.name), img)
         # cv2.namedWindow("tadpole", cv2.WINDOW_NORMAL)
         # cv2.resizeWindow("tadpole", 800, 600)
         # cv2.imshow("tadpole", img)
@@ -248,4 +247,6 @@ class MeasurementPipeline:
 
         # input("Press enter to continue...")
 
-        return MeasurementResult(file.name, length_mm, None)
+        return MeasurementResult(
+            file.name, length_mm, ruler_data.mean_ruler_delta_px, None
+        )

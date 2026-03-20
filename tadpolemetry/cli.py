@@ -1,4 +1,6 @@
+import csv
 import logging
+from datetime import datetime
 from pathlib import Path
 
 import typer
@@ -41,14 +43,42 @@ def measure(
     if verbose:
         logging.getLogger("tadpolemetry").setLevel(logging.DEBUG)
 
+    output_dir.mkdir(parents=True, exist_ok=True)
     pipeline = MeasurementPipeline(scale_weights, spline_weights)
 
-    for file_path in input_dir.iterdir():
-        if file_path.is_file():
-            try:
-                pipeline.process(file_path, output_dir)
-            except Exception as e:
-                typer.echo(f"Failed {file_path.name}: {e}")
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    csv_path = output_dir / f"results_{timestamp}.csv"
+
+    with open(csv_path, "w", newline="") as f:
+        writer = csv.DictWriter(
+            f,
+            fieldnames=[
+                "filename",
+                "length_mm",
+                "failure_reason",
+                "scale_mean_interval_px",
+            ],
+        )
+        writer.writeheader()
+
+        for file_path in input_dir.iterdir():
+            if file_path.is_file():
+                try:
+                    result = pipeline.process(file_path, output_dir)
+                except Exception as e:
+                    typer.echo(f"Failed {file_path.name}: {e}")
+                    continue
+
+                writer.writerow(
+                    {
+                        "filename": result.filename,
+                        "length_mm": result.length_mm,
+                        "scale_mean_interval_px": result.mean_ruler_delta_px,
+                        "failure_reason": result.failure_reason,
+                    }
+                )
+
+                f.flush()
 
 
 if __name__ == "__main__":
