@@ -38,10 +38,9 @@ def analyze(
     output_dir: Path = typer.Argument(..., help="Directory to save histogram"),
     bins: int = typer.Option(DEFAULT_BINS, help="Number of histogram bins"),
 ):
-    from .analyze import plot_length_histogram
-
+    from .analyze import plot_length_histogram, flag_outliers
+    flag_outliers(csv_path)
     plot_length_histogram(csv_path, output_dir, bins)
-
 
 @app.command()
 def measure(

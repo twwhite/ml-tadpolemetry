@@ -59,10 +59,10 @@ class SplineNotDetectedError(TadpolemetryError):
 class MeasurementPipeline:
     TADPOLE_KEYPOINTS = [
         "pos_rostrum",
-        "pos_tailtip",
         "pos_tailbase",
         "pos_tailbase_third",
         "pos_tailtip_third",
+        "pos_tailtip",
     ]
     TADPOLE_CONNECTIONS = [
         ("pos_rostrum", "pos_tailbase"),
@@ -104,6 +104,9 @@ class MeasurementPipeline:
             raise ScaleNotDetectedError(img_path, "No scale keypoints detected.")
 
         mean_ruler_delta_px = 150 if skip_scale else 0
+
+        if len(a_ruler_ticks_centers) < 3 and len(b_ruler_ticks_centers) < 3:
+            raise ScaleNotDetectedError(img_path, "Not enough ticks detected for valid scale.")
 
         if len(a_ruler_ticks_centers) > len(b_ruler_ticks_centers):
             mean_ruler_delta_px = self._mean_interval_from_group(a_ruler_ticks_centers)
