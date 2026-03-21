@@ -8,7 +8,7 @@ kpt_shape: [5, 3]
 flip_idx: [0, 1, 2, 3, 4]
 
 names:
-  0: scale
+  0: tadpole
 
 kpt_names:
   0:
