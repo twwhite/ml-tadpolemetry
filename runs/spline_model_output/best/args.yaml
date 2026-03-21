@@ -1,7 +1,7 @@
 task: pose
 mode: train
 model: yolo26n-pose.pt
-data: dataset.yaml
+data: data/training/configs/config_spline_model.yml
 epochs: 100
 time: null
 patience: 100
@@ -12,8 +12,8 @@ save_period: -1
 cache: false
 device: null
 workers: 8
-project: null
-name: train
+project: /home/magnetism/projects/ml-tadpolemetry/runs/spline_model_output
+name: run_20260321_101815
 exist_ok: false
 pretrained: true
 optimizer: auto
@@ -106,4 +106,4 @@ auto_augment: randaugment
 erasing: 0.4
 cfg: null
 tracker: botsort.yaml
-save_dir: /home/magnetism/projects/tadpolemetry/runs/pose/train
+save_dir: /home/magnetism/projects/ml-tadpolemetry/runs/spline_model_output/run_20260321_101815
