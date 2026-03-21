@@ -195,8 +195,16 @@ class MeasurementPipeline:
 
         log.debug(f"process start for {img_path}")
 
-        ruler_data = self._run_scale_model(img_path, skip_scale=skip_scale)
-        spline_data = self._run_spline_model(img_path)
+        try:
+            ruler_data = self._run_scale_model(img_path, skip_scale=skip_scale)
+        except Exception as e:
+            log.error("Error during run scale model")
+            return MeasurementResult(file.name, None, None, f"Error during ruler scale model: {e}")
+        try:
+            spline_data = self._run_spline_model(img_path)
+        except Exception as e:
+            log.error("Error during run spline model")
+            return MeasurementResult(file.name, None, None, f"Error during spline model: {e}")
 
         log.debug(f"ruler delta: {ruler_data.mean_ruler_delta_px}")
 
