@@ -49,7 +49,7 @@ def train(
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     cwd = os.getcwd()
 
-    model = YOLO("yolo26n.pt")
+    model = YOLO("yolo26n.pt") if model_type == "scale" else YOLO("yolo26n-pose.pt")
     model.train(
         data=str(config),
         epochs=epochs,
