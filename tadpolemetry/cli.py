@@ -17,6 +17,7 @@ DEFAULT_SCALE_WEIGHTS = Path("runs/scale_model_output/best/weights/best.pt")
 DEFAULT_SPLINE_WEIGHTS = Path("runs/spline_model_output/best/weights/best.pt")
 DEFAULT_RANDOM_SAMPLE_PCT = 5
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".tiff", ".bmp"}
+DEFAULT_BINS = 10
 
 
 @app.command()
@@ -29,6 +30,17 @@ def train(
     from .train import train as run_train
 
     run_train(model_type, config, epochs, batch)
+
+
+@app.command()
+def analyze(
+    csv_path: Path = typer.Argument(..., help="Path to results CSV"),
+    output_dir: Path = typer.Argument(..., help="Directory to save histogram"),
+    bins: int = typer.Option(DEFAULT_BINS, help="Number of histogram bins"),
+):
+    from .analyze import plot_length_histogram
+
+    plot_length_histogram(csv_path, output_dir, bins)
 
 
 @app.command()

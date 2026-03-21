@@ -103,13 +103,8 @@ class MeasurementPipeline:
         else:
             raise ScaleNotDetectedError(img_path, "No scale keypoints detected.")
 
-        # ruler_deltas = [
-        #     np.linalg.norm(ruler_kp[i] - ruler_kp[i + 1])
-        #     for i in range(len(ruler_kp) - 1)
-        # ]
-
         mean_ruler_delta_px = 150 if skip_scale else 0
-        # mean_ruler_delta_px = float(sum(ruler_deltas) / len(ruler_deltas))
+
         if len(a_ruler_ticks_centers) > len(b_ruler_ticks_centers):
             mean_ruler_delta_px = self._mean_interval_from_group(a_ruler_ticks_centers)
             side_used = "TOP"
@@ -178,7 +173,7 @@ class MeasurementPipeline:
         if n_filtered > 0:
             log.debug(f"Filtered {n_filtered} outlier tick intervals")
 
-        return float(filtered_intervals.mean())
+        return round(float(filtered_intervals.mean()), 1)
 
     def process(
         self, file: Path, output_dir: Path, skip_scale: bool = False
@@ -237,8 +232,10 @@ class MeasurementPipeline:
             )
 
         # --- Save annotated image (OPTIONAL) ---
-        # output_dir.mkdir(parents=True, exist_ok=True)
-        # cv2.imwrite(str(output_dir / file.name), img)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        cv2.imwrite(str(output_dir / file.name), img)
+
+        # --- Show annotage dimage (OPTIONAL) ---
         # cv2.namedWindow("tadpole", cv2.WINDOW_NORMAL)
         # cv2.resizeWindow("tadpole", 800, 600)
         # cv2.imshow("tadpole", img)
