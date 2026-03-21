@@ -98,7 +98,7 @@ def measure(
                     continue
 
                 flag_for_review = random.randrange(100) < random_sample_pct
-                count_flagged_for_review += 1
+                count_flagged_for_review += 1 if flag_for_review else 0
                 writer.writerow(
                     {
                         "filename": result.filename,
