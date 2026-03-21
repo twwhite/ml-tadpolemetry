@@ -78,24 +78,24 @@ def main(filename: str, output_dir: str):
                         data_simple[17] = p['value']['x']/100
                         data_simple[18] = p['value']['y']/100
                         data_simple[19] = 2
-                    elif label == 'rostrum':
+                    elif label == 'pos_rostrum':
                         """ these labels are all associated with the spline_model """
                         data_simple[5] = p['value']['x']/100
                         data_simple[6] = p['value']['y']/100
                         data_simple[7] = 2
-                    elif label == 'tailtip':
+                    elif label == 'pos_tailbase':
                         data_simple[8] = p['value']['x']/100
                         data_simple[9] = p['value']['y']/100
                         data_simple[10] = 2
-                    elif label == 'tailbase':
+                    elif label == 'pos_tailbase_third':
                         data_simple[11] = p['value']['x']/100
                         data_simple[12] = p['value']['y']/100
                         data_simple[13] = 2
-                    elif label == 'tailbase_third':
+                    elif label == 'pos_tailtip_third':
                         data_simple[14] = p['value']['x']/100
                         data_simple[15] = p['value']['y']/100
                         data_simple[16] = 2
-                    elif label == 'tailtip_third':
+                    elif label == 'pos_tailtip':
                         data_simple[17] = p['value']['x']/100
                         data_simple[18] = p['value']['y']/100
                         data_simple[19] = 2
