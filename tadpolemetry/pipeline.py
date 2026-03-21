@@ -70,8 +70,9 @@ class MeasurementPipeline:
         ("pos_tailbase_third", "pos_tailtip_third"),
         ("pos_tailtip_third", "pos_tailtip"),
     ]
-    SCALE_MODEL_CONF = 0.25
-    SPLINE_MODEL_CONF = 0.5
+
+    SCALE_MODEL_CONF = 0.2
+    SPLINE_MODEL_CONF = 0.25
 
     def __init__(self, scale_weights: Path, spline_weights: Path):
         if not scale_weights.exists():
