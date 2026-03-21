@@ -31,6 +31,14 @@ def train(
 
     run_train(model_type, config, epochs, batch)
 
+@app.command()
+def copy_review(
+    csv_path: Path = typer.Argument(..., help="Path to results CSV"),
+    input_dir: Path = typer.Argument(..., help="Directory of original input images"),
+    output_dir: Path = typer.Argument(..., help="Output directory — review/ will be created inside"),
+):
+    from .analyze import copy_review_images
+    copy_review_images(csv_path, input_dir, output_dir)
 
 @app.command()
 def analyze(
@@ -80,6 +88,7 @@ def measure(
         )
         writer.writeheader()
 
+        count_flagged_for_review = 0
         for file_path in input_dir.iterdir():
             if file_path.is_file() and file_path.suffix.lower() in IMAGE_EXTENSIONS:
                 try:
@@ -88,18 +97,20 @@ def measure(
                     typer.echo(f"Failed {file_path.name}: {e}")
                     continue
 
+                flag_for_review = random.randrange(100) < random_sample_pct
+                count_flagged_for_review += 1
                 writer.writerow(
                     {
                         "filename": result.filename,
                         "length_mm": result.length_mm,
                         "scale_mean_interval_px": result.mean_ruler_delta_px,
                         "failure_reason": result.failure_reason,
-                        "random_validate": random.randrange(100) < random_sample_pct,
+                        "random_validate": flag_for_review,
                     }
                 )
 
                 f.flush()
 
-
+        log.debug(f"COMPLETE. Flagged {count_flagged_for_review} random samples for review")
 if __name__ == "__main__":
     app()

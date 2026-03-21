@@ -2,6 +2,7 @@ import csv
 from pathlib import Path
 import statistics
 import matplotlib.pyplot as plt
+import shutil
 
 from .logging import get_logger
 
@@ -10,6 +11,29 @@ log = get_logger(__name__)
 DEFAULT_BINS = 10
 OUTLIER_ZSCORE_THRESHOLD = 2.0
 
+
+def copy_review_images(csv_path: Path, input_dir: Path, output_dir: Path):
+    """Copy images flagged for review to output_dir/review/."""
+    review_dir = output_dir / "review"
+    review_dir.mkdir(parents=True, exist_ok=True)
+
+    copied = 0
+    with open(csv_path, newline="") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            needs_review = (
+                row.get("random_validate", "False") == "True"
+                or row.get("review_outlier", "False") == "True"
+            )
+            if needs_review:
+                src = input_dir / row["filename"]
+                if src.exists():
+                    shutil.copy2(src, review_dir / row["filename"])
+                    copied += 1
+                else:
+                    log.warning(f"Image not found for review copy: {src}")
+
+    log.info(f"Copied {copied} images to {review_dir}")
 
 def _zscore_outliers(values: list[float], threshold: float) -> list[bool]:
     """Return a bool list — True where value is a zscore outlier."""
@@ -78,7 +102,7 @@ def flag_outliers(csv_path: Path, zscore_threshold: float = OUTLIER_ZSCORE_THRES
             writer.writerow(row)
 
     n_outliers = sum(length_outlier_map.get(i, False) or spacing_outlier_map.get(i, False) for i in range(len(rows)))
-    log.info(f"Flagged {n_outliers}/{len(rows)} rows as outliers")
+    log.info(f"Flagged {n_outliers}/{len(rows)} images as outliers")
 
 
 def plot_length_histogram(
