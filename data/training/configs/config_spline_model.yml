@@ -12,8 +12,8 @@ names:
 
 kpt_names:
   0:
-    - rostrum
-    - tailtip
-    - tailbase
-    - tailbase_third
-    - tailtip_third
+    - pos_rostrum
+    - pos_tailbase
+    - pos_tailbase_third
+    - pos_tailtip_third
+    - pos_tailtip
