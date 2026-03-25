@@ -31,14 +31,19 @@ def train(
 
     run_train(model_type, config, epochs, batch)
 
+
 @app.command()
 def copy_review(
     csv_path: Path = typer.Argument(..., help="Path to results CSV"),
     input_dir: Path = typer.Argument(..., help="Directory of original input images"),
-    output_dir: Path = typer.Argument(..., help="Output directory — review/ will be created inside"),
+    output_dir: Path = typer.Argument(
+        ..., help="Output directory — review/ will be created inside"
+    ),
 ):
     from .analyze import copy_review_images
+
     copy_review_images(csv_path, input_dir, output_dir)
+
 
 @app.command()
 def analyze(
@@ -46,9 +51,11 @@ def analyze(
     output_dir: Path = typer.Argument(..., help="Directory to save histogram"),
     bins: int = typer.Option(DEFAULT_BINS, help="Number of histogram bins"),
 ):
-    from .analyze import plot_length_histogram, flag_outliers
+    from .analyze import flag_outliers, plot_length_histogram
+
     flag_outliers(csv_path)
     plot_length_histogram(csv_path, output_dir, bins)
+
 
 @app.command()
 def measure(
@@ -75,6 +82,10 @@ def measure(
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     csv_path = output_dir / f"results_{timestamp}.csv"
 
+    invalid_keypoints_counter = 0
+    processed_counter = 0
+    count_flagged_for_review = 0
+
     with open(csv_path, "w", newline="") as f:
         writer = csv.DictWriter(
             f,
@@ -88,7 +99,6 @@ def measure(
         )
         writer.writeheader()
 
-        count_flagged_for_review = 0
         for file_path in input_dir.iterdir():
             if file_path.is_file() and file_path.suffix.lower() in IMAGE_EXTENSIONS:
                 try:
@@ -96,6 +106,10 @@ def measure(
                 except Exception as e:
                     typer.echo(f"Failed {file_path.name}: {e}")
                     continue
+
+                processed_counter += 1
+                if not result.keypoints_contained:
+                    invalid_keypoints_counter += 1
 
                 flag_for_review = random.randrange(100) < random_sample_pct
                 count_flagged_for_review += 1 if flag_for_review else 0
@@ -111,6 +125,13 @@ def measure(
 
                 f.flush()
 
-        log.debug(f"COMPLETE. Flagged {count_flagged_for_review} random samples for review")
+        log.info(
+            f"COMPLETE. Flagged {count_flagged_for_review} random samples for review"
+        )
+        log.info(
+            f"bbox keypoint data: {invalid_keypoints_counter} invalid out of {processed_counter} ({round(100 * (invalid_keypoints_counter / processed_counter), 0)}%)"
+        )
+
+
 if __name__ == "__main__":
     app()

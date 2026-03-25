@@ -17,6 +17,7 @@ class MeasurementResult:
     filename: str
     length_mm: float | None
     mean_ruler_delta_px: float | None
+    keypoints_contained: bool | None
     failure_reason: str | None
 
     @property
@@ -28,6 +29,7 @@ class MeasurementResult:
 class SplineResult:
     labeled_kp: dict
     segment_lengths: list[float]
+    bbox: tuple[int, int, int, int]  # x1, y1, x2, y2
 
 
 @dataclass
@@ -86,7 +88,9 @@ class MeasurementPipeline:
 
     def _run_scale_model(self, img_path: str, skip_scale: bool = False) -> ScaleResult:
         """Execute scale model, return ruler measuremenet delta"""
-        scale_result = self.scale_model(img_path, conf=self.SCALE_MODEL_CONF)[0]
+        scale_result = self.scale_model(
+            img_path, conf=self.SCALE_MODEL_CONF, verbose=False
+        )[0]
 
         a_ruler_ticks_centers = []
         b_ruler_ticks_centers = []
@@ -107,7 +111,9 @@ class MeasurementPipeline:
         mean_ruler_delta_px = 150 if skip_scale else 0
 
         if len(a_ruler_ticks_centers) < 3 and len(b_ruler_ticks_centers) < 3:
-            raise ScaleNotDetectedError(img_path, "Not enough ticks detected for valid scale.")
+            raise ScaleNotDetectedError(
+                img_path, "Not enough ticks detected for valid scale."
+            )
 
         if len(a_ruler_ticks_centers) > len(b_ruler_ticks_centers):
             mean_ruler_delta_px = self._mean_interval_from_group(a_ruler_ticks_centers)
@@ -125,7 +131,9 @@ class MeasurementPipeline:
 
     def _run_spline_model(self, img_path: str) -> SplineResult:
         """Execute spline model, return body keypoints"""
-        tadpole_result = self.spline_model(img_path, conf=self.SPLINE_MODEL_CONF)[0]
+        tadpole_result = self.spline_model(
+            img_path, conf=self.SPLINE_MODEL_CONF, verbose=False
+        )[0]
         tadpole_kp = tadpole_result.keypoints.xy[0].cpu().numpy()
 
         if len(tadpole_kp) < 5:
@@ -139,7 +147,13 @@ class MeasurementPipeline:
             float(np.linalg.norm(labeled_kp[a] - labeled_kp[b]))
             for a, b in self.TADPOLE_CONNECTIONS
         ]
-        return SplineResult(labeled_kp=labeled_kp, segment_lengths=segment_lengths)
+
+        x1, y1, x2, y2 = tadpole_result.boxes.xyxy[0].cpu().numpy()
+        bbox = (int(x1), int(y1), int(x2), int(y2))
+
+        return SplineResult(
+            labeled_kp=labeled_kp, segment_lengths=segment_lengths, bbox=bbox
+        )
 
     def _mean_interval_from_group(self, centers: list[tuple]) -> float:
 
@@ -186,12 +200,16 @@ class MeasurementPipeline:
         img_path = str(file)
 
         if not Path(img_path).exists():
-            return MeasurementResult(file.name, None, None, "Image file not found")
+            return MeasurementResult(
+                file.name, None, None, None, "Image file not found"
+            )
 
         img = cv2.imread(img_path)
 
         if img is None:
-            return MeasurementResult(file.name, None, None, "Failed to load image")
+            return MeasurementResult(
+                file.name, None, None, None, "Failed to load image"
+            )
 
         log.debug(f"process start for {img_path}")
 
@@ -199,18 +217,41 @@ class MeasurementPipeline:
             ruler_data = self._run_scale_model(img_path, skip_scale=skip_scale)
         except Exception as e:
             log.error("Error during run scale model")
-            return MeasurementResult(file.name, None, None, f"Error during ruler scale model: {e}")
+            return MeasurementResult(
+                file.name, None, None, None, f"Error during ruler scale model: {e}"
+            )
         try:
             spline_data = self._run_spline_model(img_path)
         except Exception as e:
             log.error("Error during run spline model")
-            return MeasurementResult(file.name, None, None, f"Error during spline model: {e}")
+            return MeasurementResult(
+                file.name, None, None, None, f"Error during spline model: {e}"
+            )
 
         log.debug(f"ruler delta: {ruler_data.mean_ruler_delta_px}")
-
         length_mm = sum(spline_data.segment_lengths) / ruler_data.mean_ruler_delta_px
 
+        # Warn user if keypoints fall outside of bbox
+        val_keypoints_inside_bbox = True
+        x1, y1, x2, y2 = spline_data.bbox
+        for name, kp in spline_data.labeled_kp.items():
+            kx, ky = kp
+            if not (x1 <= kx <= x2 and y1 <= ky <= y2):
+                log.warning(
+                    f"{file.name}: keypoint {name} ({kx:.1f}, {ky:.1f}) outside bounding box"
+                )
+                val_keypoints_inside_bbox = False
+
         # --- Annotate image ---
+        # Add bounding box around tadpole
+        cv2.rectangle(
+            img,
+            (spline_data.bbox[0], spline_data.bbox[1]),
+            (spline_data.bbox[2], spline_data.bbox[3]),
+            (0, 255, 255),
+            4,
+        )
+
         for x, y in spline_data.labeled_kp.values():
             cv2.circle(img, (int(x), int(y)), 24, (0, 0, 255), -1)
         for a, b in self.TADPOLE_CONNECTIONS:
@@ -229,6 +270,8 @@ class MeasurementPipeline:
             f"Ruler spacing {ruler_data.mean_ruler_delta_px} px",
             f"Ruler axis: {ruler_data.side_used} side",
         ]
+        if not val_keypoints_inside_bbox:
+            diag_text.append("WARNING: keypoints outside bbox")
 
         line_start = 250
         for i, text in enumerate(diag_text):
@@ -247,7 +290,7 @@ class MeasurementPipeline:
         output_dir.mkdir(parents=True, exist_ok=True)
         cv2.imwrite(str(output_dir / file.name), img)
 
-        # --- Show annotage dimage (OPTIONAL) ---
+        # # --- Show annotage dimage (OPTIONAL) ---
         # cv2.namedWindow("tadpole", cv2.WINDOW_NORMAL)
         # cv2.resizeWindow("tadpole", 800, 600)
         # cv2.imshow("tadpole", img)
@@ -257,5 +300,9 @@ class MeasurementPipeline:
         # input("Press enter to continue...")
 
         return MeasurementResult(
-            file.name, length_mm, ruler_data.mean_ruler_delta_px, None
+            filename=file.name,
+            length_mm=length_mm,
+            mean_ruler_delta_px=ruler_data.mean_ruler_delta_px,
+            keypoints_contained=val_keypoints_inside_bbox,
+            failure_reason=None,
         )

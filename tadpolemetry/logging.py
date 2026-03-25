@@ -13,7 +13,7 @@ def get_logger(name: str) -> logging.Logger:
         handler.setFormatter(formatter)
         logger.addHandler(handler)
 
-    level = logging.DEBUG
+    level = logging.INFO
     logger.setLevel(level)
 
     return logger
