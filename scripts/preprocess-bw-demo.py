@@ -6,14 +6,14 @@ import time
 import cv2
 
 WINDOW_NAME = "original + binary overlay"
-TOGGLE_DELAY = 0.5
+TOGGLE_DELAY = 1
+THRESHOLD = 127
 
 img = cv2.imread(sys.argv[1])
 
 OTSU_OFFSET = 50  # increase to be less aggressive
 gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-otsu_threshold, _ = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-_, binary = cv2.threshold(gray, otsu_threshold + OTSU_OFFSET, 255, cv2.THRESH_BINARY)
+_, binary = cv2.threshold(gray, THRESHOLD, 255, cv2.THRESH_BINARY)
 binary_3channel = cv2.cvtColor(binary, cv2.COLOR_GRAY2BGR)
 
 

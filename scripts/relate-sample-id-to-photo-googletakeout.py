@@ -20,9 +20,10 @@ def parse_args() -> argparse.Namespace:
         help="Directory containing the .json metadata files.",
     )
     parser.add_argument(
-        "output_csv",
+        "--output_csv",
         type=Path,
         help="Path for the output CSV file.",
+        default=Path("./data/inference/input_config/sample_identification_lookup.csv")
     )
     return parser.parse_args()
 
