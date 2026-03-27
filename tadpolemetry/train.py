@@ -10,23 +10,6 @@ from .logging import get_logger
 log = get_logger(__name__)
 
 
-# model = YOLO("yolo26n.pt")
-# cwd = os.getcwd()
-# timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-
-# model_name = "scale"
-# model.train(
-#     data=f"data/training/configs/config_{model_name}_model.yml",
-#     epochs=100,
-#     batch=32,
-#     imgsz=640,
-#     augment=True,
-#     project=f"{cwd}/tadpolemetry/models/{model_name}_model_output",
-#     name=f"run_{timestamp}",
-# )
-
-# model.train(data='configs/config_spline_model.yaml', epochs=100, batch=32, imgsz=640, augment=True)
-
 VALID_MODELS = ["scale", "spline"]
 
 
@@ -50,11 +33,12 @@ def train(
     cwd = os.getcwd()
 
     model = YOLO("yolo26n.pt") if model_type == "scale" else YOLO("yolo26n-pose.pt")
+
     model.train(
         data=str(config),
         epochs=epochs,
         batch=batch,
-        imgsz=640,
+        imgsz=1920,
         augment=True,
         project=f"{cwd}/runs/{model_type}_model_output",
         name=f"run_{timestamp}",

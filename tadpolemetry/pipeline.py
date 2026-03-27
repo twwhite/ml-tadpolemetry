@@ -132,7 +132,7 @@ class MeasurementPipeline:
     def _run_spline_model(self, img_path: str) -> SplineResult:
         """Execute spline model, return body keypoints"""
         tadpole_result = self.spline_model(
-            img_path, conf=self.SPLINE_MODEL_CONF, verbose=False
+            img_path, conf=self.SPLINE_MODEL_CONF, verbose=False, imgsz=1920
         )[0]
         tadpole_kp = tadpole_result.keypoints.xy[0].cpu().numpy()
 
