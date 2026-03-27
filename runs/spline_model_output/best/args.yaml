@@ -13,7 +13,7 @@ cache: false
 device: null
 workers: 8
 project: /home/magnetism/projects/ml-tadpolemetry/runs/spline_model_output
-name: run_20260321_101815
+name: run_20260326_183429
 exist_ok: false
 pretrained: true
 optimizer: auto
@@ -106,4 +106,4 @@ auto_augment: randaugment
 erasing: 0.4
 cfg: null
 tracker: botsort.yaml
-save_dir: /home/magnetism/projects/ml-tadpolemetry/runs/spline_model_output/run_20260321_101815
+save_dir: /home/magnetism/projects/ml-tadpolemetry/runs/spline_model_output/run_20260326_183429
