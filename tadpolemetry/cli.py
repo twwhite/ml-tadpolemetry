@@ -24,7 +24,7 @@ DEFAULT_BINS = 10
 def train(
     model_type: str = typer.Argument(..., help="Model to train: scale or spline"),
     config: Path = typer.Option(None, help="Path to training config YAML"),
-    epochs: int = typer.Option(100),
+    epochs: int = typer.Option(300),
     batch: int = typer.Option(32),
 ):
     from .train import train as run_train
