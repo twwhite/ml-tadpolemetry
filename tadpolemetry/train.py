@@ -14,7 +14,7 @@ VALID_MODELS = ["scale", "spline"]
 
 
 def train(
-    model_type: str, config: Path | None = None, epochs:int, batch:int
+    model_type: str, epochs:int, batch:int, config: Path | None = None,
 ):
     print(torch.cuda.is_available())
     print(torch.cuda.get_device_name(0))

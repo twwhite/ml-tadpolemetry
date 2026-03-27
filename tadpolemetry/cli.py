@@ -29,7 +29,7 @@ def train(
 ):
     from .train import train as run_train
 
-    run_train(model_type, config, epochs, batch)
+    run_train(model_type, epochs, batch, config)
 
 
 @app.command()
