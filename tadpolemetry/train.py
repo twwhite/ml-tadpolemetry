@@ -32,14 +32,14 @@ def train(
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     cwd = os.getcwd()
 
-    model = YOLO("yolo26n.pt") if model_type == "scale" else YOLO("yolo26n-pose.pt")
+    model = YOLO("yolo26n.pt") if model_type == "scale" else YOLO("yolo26s-pose.pt")
 
     model.train(
         data=str(config),
         epochs=epochs,
         batch=batch,
-        imgsz=1920,
-        augment=True,
+        imgsz=1280,
+	degrees=180,
         project=f"{cwd}/runs/{model_type}_model_output",
         name=f"run_{timestamp}",
     )
