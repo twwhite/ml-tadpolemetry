@@ -73,8 +73,8 @@ class MeasurementPipeline:
         ("pos_tailtip_third", "pos_tailtip"),
     ]
 
-    SCALE_MODEL_CONF = 0.2
-    SPLINE_MODEL_CONF = 0.25
+    SCALE_MODEL_CONF = 0.05
+    SPLINE_MODEL_CONF = 0.05
 
     def __init__(self, scale_weights: Path, spline_weights: Path):
         if not scale_weights.exists():
@@ -216,14 +216,14 @@ class MeasurementPipeline:
         try:
             ruler_data = self._run_scale_model(img_path, skip_scale=skip_scale)
         except Exception as e:
-            log.error("Error during run scale model")
+            log.error(f"Error during run scale model {e}")
             return MeasurementResult(
                 file.name, None, None, None, f"Error during ruler scale model: {e}"
             )
         try:
             spline_data = self._run_spline_model(img_path)
         except Exception as e:
-            log.error("Error during run spline model")
+            log.error(f"Error during run spline model {e}")
             return MeasurementResult(
                 file.name, None, None, None, f"Error during spline model: {e}"
             )
