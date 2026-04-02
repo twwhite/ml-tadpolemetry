@@ -74,7 +74,7 @@ class MeasurementPipeline:
     ]
 
     SCALE_MODEL_CONF = 0.05
-    SPLINE_MODEL_CONF = 0.05
+    SPLINE_MODEL_CONF = 0.25
 
     def __init__(self, scale_weights: Path, spline_weights: Path):
         if not scale_weights.exists():
@@ -132,7 +132,7 @@ class MeasurementPipeline:
     def _run_spline_model(self, img_path: str) -> SplineResult:
         """Execute spline model, return body keypoints"""
         tadpole_result = self.spline_model(
-            img_path, conf=self.SPLINE_MODEL_CONF, verbose=False, imgsz=1920
+            img_path, conf=self.SPLINE_MODEL_CONF, verbose=False, imgsz=1024
         )[0]
         tadpole_kp = tadpole_result.keypoints.xy[0].cpu().numpy()
 
