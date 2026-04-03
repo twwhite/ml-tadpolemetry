@@ -73,7 +73,7 @@ class MeasurementPipeline:
         ("pos_tailtip_third", "pos_tailtip"),
     ]
 
-    SCALE_MODEL_CONF = 0.05
+    SCALE_MODEL_CONF = 0.25
     SPLINE_MODEL_CONF = 0.25
 
     def __init__(self, scale_weights: Path, spline_weights: Path):
@@ -179,7 +179,7 @@ class MeasurementPipeline:
             (adjacent_intervals >= (1 - THRESHOLD_FILTER_PCT) * median_interval)
             & (adjacent_intervals <= (1 + THRESHOLD_FILTER_PCT) * median_interval)
         ]
-        log.info(f"intervals: {[round(float(i), 1) for i in filtered_intervals]}")
+        log.debug(f"intervals: {[round(float(i), 1) for i in filtered_intervals]}")
 
         if len(filtered_intervals) == 0:
             log.error("No intervals after filtering. Odd!")
@@ -189,7 +189,7 @@ class MeasurementPipeline:
         if n_filtered > 0:
             log.debug(f"Filtered {n_filtered} outlier tick intervals")
 
-        log.info(
+        log.debug(
             f"ruler axis angle: {np.degrees(np.arctan2(axis_unit[1], axis_unit[0])):.1f}°"
         )
         return round(float(filtered_intervals.mean()), 1)
@@ -230,7 +230,7 @@ class MeasurementPipeline:
             )
 
         log.debug(f"ruler delta: {ruler_data.mean_ruler_delta_px}")
-        length_mm = sum(spline_data.segment_lengths) / ruler_data.mean_ruler_delta_px
+        length_mm = round(sum(spline_data.segment_lengths) / ruler_data.mean_ruler_delta_px, 1)
 
         # Warn user if keypoints fall outside of bbox
         val_keypoints_inside_bbox = True
@@ -238,9 +238,9 @@ class MeasurementPipeline:
         for name, kp in spline_data.labeled_kp.items():
             kx, ky = kp
             if not (x1 <= kx <= x2 and y1 <= ky <= y2):
-                log.warning(
-                    f"{file.name}: keypoint {name} ({kx:.1f}, {ky:.1f}) outside bounding box"
-                )
+                #log.warning(
+                #    f"{file.name}: keypoint {name} ({kx:.1f}, {ky:.1f}) outside bounding box"
+                #)
                 val_keypoints_inside_bbox = False
 
         # --- Annotate image ---
@@ -271,8 +271,8 @@ class MeasurementPipeline:
             f"Ruler spacing {ruler_data.mean_ruler_delta_px} px",
             f"Ruler axis: {ruler_data.side_used} side",
         ]
-        if not val_keypoints_inside_bbox:
-            diag_text.append("WARNING: keypoints outside bbox")
+        #if not val_keypoints_inside_bbox:
+            #diag_text.append("WARNING: keypoints outside bbox")
 
         line_start = 250
         for i, text in enumerate(diag_text):
