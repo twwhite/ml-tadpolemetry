@@ -159,19 +159,18 @@ class MeasurementPipeline:
 
         log.debug(f"num ruler ticks: {len(centers)}")
         """Return mean px interval between adjacent ticks in a group."""
-        pts = np.array(centers)
+        pts = np.array(centers, dtype=np.float64)
 
-        x_spread = pts[:, 0].max() - pts[:, 0].min()
-        y_spread = pts[:, 1].max() - pts[:, 1].min()
-        dominant_axis = (
-            0 if x_spread > y_spread else 1
-        )  # 0=x (horizontal), 1=y (vertical)
+        # PCA to find true ruler axis regardless of orientation
+        centered = pts - pts.mean(axis=0)
+        _, _, vt = np.linalg.svd(centered)
+        axis_unit = vt[0]  # principal axis vector
 
-        sorted_pts = pts[pts[:, dominant_axis].argsort()]
-        adjacent_intervals = np.diff(sorted_pts[:, dominant_axis])
+        # Project all points onto the ruler axis
+        projections = centered @ axis_unit
+        projections.sort()
 
-        log.debug(f"adjacent {adjacent_intervals}")
-
+        adjacent_intervals = np.diff(projections)
         median_interval = np.median(adjacent_intervals)
 
         THRESHOLD_FILTER_PCT = 0.5
@@ -180,8 +179,7 @@ class MeasurementPipeline:
             (adjacent_intervals >= (1 - THRESHOLD_FILTER_PCT) * median_interval)
             & (adjacent_intervals <= (1 + THRESHOLD_FILTER_PCT) * median_interval)
         ]
-
-        log.debug(f"filtered {filtered_intervals}")
+        log.info(f"intervals: {[round(float(i), 1) for i in filtered_intervals]}")
 
         if len(filtered_intervals) == 0:
             log.error("No intervals after filtering. Odd!")
@@ -191,6 +189,9 @@ class MeasurementPipeline:
         if n_filtered > 0:
             log.debug(f"Filtered {n_filtered} outlier tick intervals")
 
+        log.info(
+            f"ruler axis angle: {np.degrees(np.arctan2(axis_unit[1], axis_unit[0])):.1f}°"
+        )
         return round(float(filtered_intervals.mean()), 1)
 
     def process(
