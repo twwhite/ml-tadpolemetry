@@ -89,7 +89,7 @@ class MeasurementPipeline:
     def _run_scale_model(self, img_path: str, skip_scale: bool = False) -> ScaleResult:
         """Execute scale model, return ruler measuremenet delta"""
         scale_result = self.scale_model(
-            img_path, conf=self.SCALE_MODEL_CONF, verbose=False
+            img_path, conf=self.SCALE_MODEL_CONF, verbose=False, imgsz=1280
         )[0]
 
         a_ruler_ticks_centers = []
